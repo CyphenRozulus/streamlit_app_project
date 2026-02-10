@@ -4,7 +4,4 @@ numpy
 matplotlib
 seaborn
 joblib
-json
-sklearn
 scikit-learn
-os
