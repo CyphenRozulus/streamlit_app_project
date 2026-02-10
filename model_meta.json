@@ -18,11 +18,12 @@
     "STAR"
   ],
   "best_params": {
-    "n_estimators": 300,
-    "max_depth": 30
+    "n_estimators": 50,
+    "min_samples_split": 5,
+    "max_depth": null
   },
   "test_macro_f1": 0.9769,
-  "test_accuracy": 0.9802,
+  "test_accuracy": 0.9801,
   "baseline_lr_f1": 0.9377,
   "baseline_rf_f1": 0.9756
 }
