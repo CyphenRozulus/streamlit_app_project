@@ -132,22 +132,6 @@ FEATURE_COLS = meta['feature_cols']    # ['u','g','r','i','z','u_g','g_r','r_i',
 CLASS_NAMES  = meta['class_names']     # ['GALAXY', 'QSO', 'STAR']
 
 # ──────────────────────────────────────────────────────────────────────────────
-# OPTIONAL: load dataset for EDA page (read-only, never used for training)
-# ──────────────────────────────────────────────────────────────────────────────
-@st.cache_data(show_spinner="📂 Loading dataset for EDA...")
-def try_load_data():
-    candidates = [
-        'star_classification.csv',
-        '/mnt/user-data/uploads/star_classification.csv',
-    ]
-    for p in candidates:
-        if os.path.exists(p):
-            return pd.read_csv(p)
-    return None
-
-df_raw = try_load_data()
-
-# ──────────────────────────────────────────────────────────────────────────────
 # SIDEBAR
 # ──────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -155,7 +139,7 @@ with st.sidebar:
     st.markdown("---")
     page = st.radio(
         "Navigate",
-        ["🏠 Home", "🔭 Predict Object", "📁 Batch Predict", "📊 EDA & Insights", "🤖 Model Info"],
+        ["🏠 Home", "🔭 Predict Object", "📁 Batch Predict", "🤖 Model Info"],
         label_visibility="collapsed"
     )
     st.markdown("---")
@@ -417,126 +401,6 @@ elif page == "📁 Batch Predict":
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: EDA & INSIGHTS
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "📊 EDA & Insights":
-    st.markdown("## 📊 Exploratory Data Analysis")
-
-    if df_raw is None:
-        st.warning(
-            "Dataset `star_classification.csv` not found in the app directory. "
-            "EDA visualisations are based on the training data — place the CSV alongside "
-            "this app file to enable this page."
-        )
-        st.stop()
-
-    ID_COLS = ['obj_ID', 'run_ID', 'rerun_ID', 'cam_col',
-               'field_ID', 'spec_obj_ID', 'plate', 'MJD', 'fiber_ID']
-    df = df_raw.drop(columns=ID_COLS, errors='ignore')
-
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🎯 Target Distribution",
-        "📡 Filter Distributions",
-        "🌊 Redshift Analysis",
-        "🔗 Correlations"
-    ])
-
-    with tab1:
-        counts  = df_raw['class'].value_counts()
-        colors  = [PALETTE.get(c, '#888') for c in counts.index]
-        fig, (ax1, ax2) = plt.subplots(1, 2)
-        fig.patch.set_facecolor('#0d0e22')
-
-        ax1.bar(counts.index, counts.values, color=colors, edgecolor='#222244', width=0.55)
-        ax1.set_facecolor('#0d0e22'); ax1.tick_params(colors='white')
-        ax1.spines[:].set_color('#333'); ax1.set_ylabel('Count', color='#aab')
-        ax1.set_title('Count per Class', color='white')
-        for i, (c, p) in enumerate(zip(counts.values, counts.values/counts.sum()*100)):
-            ax1.text(i, c + 500, f'{c:,}\n({p:.1f}%)', ha='center', color='white', fontsize=9)
-
-        ax2.pie(counts.values, labels=counts.index, colors=colors, autopct='%1.1f%%',
-                startangle=140, textprops={'color': 'white'},
-                wedgeprops={'edgecolor': '#0d0e22'})
-        ax2.set_title('Proportions', color='white')
-        plt.tight_layout()
-        st.pyplot(fig, use_container_width=True)
-        plt.close()
-        st.info("⚠️ Moderate class imbalance (~59% GALAXY). Macro-F1 was chosen as the "
-                "evaluation metric to ensure equal treatment of all three classes.")
-
-    with tab2:
-        sel = st.selectbox("Select filter:", ['u', 'g', 'r', 'i', 'z'])
-        fig, ax = plt.subplots()
-        fig.patch.set_facecolor('#0d0e22'); ax.set_facecolor('#0d0e22')
-        for cls, color in PALETTE.items():
-            sub = df_raw[df_raw['class'] == cls][sel]
-            sub = sub[(sub > sub.quantile(0.01)) & (sub < sub.quantile(0.99))]
-            ax.hist(sub, bins=60, alpha=0.55, label=cls, color=color, density=True)
-        ax.set_title(f'{sel}-band magnitude distribution', color='white', fontsize=13)
-        ax.set_xlabel('Magnitude', color='#aab'); ax.set_ylabel('Density', color='#aab')
-        ax.tick_params(colors='white'); ax.spines[:].set_color('#333'); ax.legend()
-        plt.tight_layout()
-        st.pyplot(fig, use_container_width=True)
-        plt.close()
-        st.markdown("**Insight:** Raw filter bands show heavy class overlap — absolute brightness "
-                    "alone cannot reliably classify objects. Colour indices (filter differences) "
-                    "capture spectral shape and provide better separation.")
-
-    with tab3:
-        # ── Panel 1: Full range with fixed clip (not per-class quantile)
-        # Using per-class quantile clipping previously made STAR invisible:
-        # STAR q99 ≈ 0.001, so it occupied a sliver of the x-axis (0–5 range).
-        # Fix: use a single fixed upper clip (z < 5.5) for all classes,
-        # plus a zoomed panel where STAR is clearly visible.
-        fig, (ax1, ax2) = plt.subplots(1, 2)
-        fig.patch.set_facecolor('#0d0e22')
-
-        for cls, color in PALETTE.items():
-            sub = df_raw[df_raw['class'] == cls]['redshift']
-            sub = sub[sub < 5.5]   # Fixed clip — same for all classes
-            ax1.hist(sub, bins=100, alpha=0.6, label=cls, color=color, density=True)
-        ax1.set_facecolor('#0d0e22'); ax1.tick_params(colors='white'); ax1.spines[:].set_color('#333')
-        ax1.set_title('Full Range (z < 5.5)  — STAR is the spike at z≈0', color='white'); ax1.legend()
-        ax1.set_xlabel('Redshift', color='#aab'); ax1.set_ylabel('Density', color='#aab')
-
-        # ── Panel 2: Zoomed into z ∈ [-0.01, 0.10] so STAR is visible
-        for cls, color in PALETTE.items():
-            sub = df_raw[df_raw['class'] == cls]['redshift']
-            sub = sub[(sub >= -0.01) & (sub <= 0.10)]
-            if len(sub) > 0:
-                ax2.hist(sub, bins=60, alpha=0.65, label=f'{cls} (n={len(sub):,})',
-                         color=color, density=True)
-        ax2.set_facecolor('#0d0e22'); ax2.tick_params(colors='white'); ax2.spines[:].set_color('#333')
-        ax2.set_title('Zoomed: z ∈ [-0.01, 0.10]  (STAR clearly visible)', color='white')
-        ax2.legend(); ax2.axvline(0, color='white', linestyle='--', alpha=0.4)
-        ax2.set_xlabel('Redshift', color='#aab')
-        plt.tight_layout()
-        st.pyplot(fig, use_container_width=True)
-        plt.close()
-
-        c1, c2, c3 = st.columns(3)
-        for col, cls in zip([c1, c2, c3], ['GALAXY', 'STAR', 'QSO']):
-            col.metric(f"{ICONS[cls]} {cls} median z",
-                       f"{df_raw[df_raw['class']==cls]['redshift'].median():.5f}")
-        st.success("✅ Stars cluster at z≈0 (nearby). Galaxies span 0–2. "
-                   "Quasars extend to z>5 (distant universe). "
-                   "Redshift is the single most discriminative feature in the dataset.")
-
-    with tab4:
-        num_cols = ['u', 'g', 'r', 'i', 'z', 'redshift']
-        corr = df[num_cols].corr()
-        fig, ax = plt.subplots()
-        fig.patch.set_facecolor('#0d0e22'); ax.set_facecolor('#0d0e22')
-        sns.heatmap(corr, annot=True, fmt='.2f', cmap='coolwarm', ax=ax,
-                    linewidths=0.5, vmin=-1, vmax=1, square=True,
-                    cbar_kws={'shrink': 0.8}, annot_kws={'size': 10, 'color': 'white'})
-        ax.set_title('Feature Correlation', color='white'); ax.tick_params(colors='white')
-        plt.tight_layout()
-        st.pyplot(fig, use_container_width=True)
-        plt.close()
-        st.warning("⚠️ g, r, i, z are highly correlated (r > 0.93) — they encode "
-                   "redundant information. This motivates colour indices (differences) "
-                   "which are less correlated and more physically interpretable.")
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: MODEL INFO
