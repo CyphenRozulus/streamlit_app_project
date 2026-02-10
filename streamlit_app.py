@@ -443,7 +443,7 @@ elif page == "📊 EDA & Insights":
     with tab1:
         counts  = df_raw['class'].value_counts()
         colors  = [PALETTE.get(c, '#888') for c in counts.index]
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4))
+        fig, (ax1, ax2) = plt.subplots(1, 2)
         fig.patch.set_facecolor('#0d0e22')
 
         ax1.bar(counts.index, counts.values, color=colors, edgecolor='#222244', width=0.55)
@@ -465,7 +465,7 @@ elif page == "📊 EDA & Insights":
 
     with tab2:
         sel = st.selectbox("Select filter:", ['u', 'g', 'r', 'i', 'z'])
-        fig, ax = plt.subplots(figsize=(9, 4))
+        fig, ax = plt.subplots()
         fig.patch.set_facecolor('#0d0e22'); ax.set_facecolor('#0d0e22')
         for cls, color in PALETTE.items():
             sub = df_raw[df_raw['class'] == cls][sel]
@@ -487,7 +487,7 @@ elif page == "📊 EDA & Insights":
         # STAR q99 ≈ 0.001, so it occupied a sliver of the x-axis (0–5 range).
         # Fix: use a single fixed upper clip (z < 5.5) for all classes,
         # plus a zoomed panel where STAR is clearly visible.
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+        fig, (ax1, ax2) = plt.subplots(1, 2)
         fig.patch.set_facecolor('#0d0e22')
 
         for cls, color in PALETTE.items():
@@ -524,7 +524,7 @@ elif page == "📊 EDA & Insights":
     with tab4:
         num_cols = ['u', 'g', 'r', 'i', 'z', 'redshift']
         corr = df[num_cols].corr()
-        fig, ax = plt.subplots(figsize=(7, 6))
+        fig, ax = plt.subplots()
         fig.patch.set_facecolor('#0d0e22'); ax.set_facecolor('#0d0e22')
         sns.heatmap(corr, annot=True, fmt='.2f', cmap='coolwarm', ax=ax,
                     linewidths=0.5, vmin=-1, vmax=1, square=True,
@@ -566,7 +566,7 @@ elif page == "🤖 Model Info":
             model.feature_importances_, index=FEATURE_COLS
         ).sort_values()
 
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots()
         fig.patch.set_facecolor('#0d0e22'); ax.set_facecolor('#0d0e22')
         clrs = ['#EF9A9A' if v > 0.2 else '#4FC3F7' if v > 0.05 else '#90A4AE'
                 for v in importances.values]
